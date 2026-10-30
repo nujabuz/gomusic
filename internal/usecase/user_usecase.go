@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ozydevloper/music-cloud/internal/domain"
+	"github.com/nujabus/music-cloud/internal/domain"
 )
 
 type userUseCase struct {

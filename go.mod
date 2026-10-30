@@ -1,4 +1,4 @@
-module github.com/ozydevloper/music-cloud
+module github.com/nujabus/music-cloud
 
 go 1.27.3
 
