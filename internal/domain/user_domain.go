@@ -52,7 +52,6 @@ type UserOutput struct {
 type UserRepository interface {
 	Create(ctx context.Context, user *User) (*User, error)
 	Update(ctx context.Context, user *User) (*User, error)
-	Delete() error
 	FindByUsername(ctx context.Context, username string) (*User, error)
 }
 
