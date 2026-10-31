@@ -33,9 +33,6 @@ func (uc *userUseCase) Register(ctx context.Context, in *domain.RegisterInput) (
 
 	hashed, err := uc.hasher.Hash(in.Password)
 	if err != nil {
-		if errors.Is(err, domain.ErrInvalidUser) {
-			return nil, err
-		}
 		return nil, fmt.Errorf("register.hash: hash password: %w", err)
 	}
 
@@ -45,6 +42,9 @@ func (uc *userUseCase) Register(ctx context.Context, in *domain.RegisterInput) (
 
 	user, err := uc.repo.Create(ctx, userRegister)
 	if err != nil {
+		if errors.Is(err, domain.ErrUserAlreadyExists) {
+			return nil, err
+		}
 		return nil, fmt.Errorf("register.create: create user: %w", err)
 	}
 
@@ -58,7 +58,6 @@ func (uc *userUseCase) Register(ctx context.Context, in *domain.RegisterInput) (
 }
 
 func (uc *userUseCase) Login(ctx context.Context, in *domain.LoginInput) (*domain.UserOutput, error) {
-
 	user, err := uc.repo.FindByUsername(ctx, in.Username)
 	if err != nil {
 		if errors.Is(err, domain.ErrUserNotFound) {
@@ -93,17 +92,11 @@ func (uc *userUseCase) ChangePassword(ctx context.Context, in *domain.ChangePass
 	}
 
 	if err := uc.hasher.Compare(in.PreviousPassword, user.Password); err != nil {
-		if errors.Is(err, domain.ErrInvalidUser) {
-			return nil, err
-		}
 		return nil, fmt.Errorf("changePassword.compare: compare password: %w", err)
 	}
 
 	hashed, err := uc.hasher.Hash(in.NewPassword)
 	if err != nil {
-		if errors.Is(err, domain.ErrInvalidUser) {
-			return nil, err
-		}
 		return nil, fmt.Errorf("changePassword.hash: hash password: %w", err)
 	}
 
@@ -111,6 +104,9 @@ func (uc *userUseCase) ChangePassword(ctx context.Context, in *domain.ChangePass
 
 	updatedUser, err := uc.repo.Update(ctx, user)
 	if err != nil {
+		if errors.Is(err, domain.ErrUserNotFound) {
+			return nil, err
+		}
 		return nil, fmt.Errorf("changePassword.update: update password: %w", err)
 	}
 
