@@ -8,465 +8,263 @@ import (
 
 	"github.com/nujabuz/music-cloud/internal/domain"
 	"github.com/nujabuz/music-cloud/internal/usecase"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
 )
 
-// MockUserRepository implements domain.UserRepository
+// MockUserRepository mocks domain.UserRepository
 type MockUserRepository struct {
 	mock.Mock
 }
 
 func (m *MockUserRepository) Create(ctx context.Context, user *domain.User) (*domain.User, error) {
 	args := m.Called(ctx, user)
-	if res := args.Get(0); res != nil {
-		return res.(*domain.User), args.Error(1)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return nil, args.Error(1)
+	return args.Get(0).(*domain.User), args.Error(1)
 }
 
 func (m *MockUserRepository) Update(ctx context.Context, user *domain.User) (*domain.User, error) {
 	args := m.Called(ctx, user)
-	if res := args.Get(0); res != nil {
-		return res.(*domain.User), args.Error(1)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return nil, args.Error(1)
-}
-
-func (m *MockUserRepository) Delete() error {
-	args := m.Called()
-	return args.Error(0)
+	return args.Get(0).(*domain.User), args.Error(1)
 }
 
 func (m *MockUserRepository) FindByUsername(ctx context.Context, username string) (*domain.User, error) {
 	args := m.Called(ctx, username)
-	if res := args.Get(0); res != nil {
-		return res.(*domain.User), args.Error(1)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return nil, args.Error(1)
+	return args.Get(0).(*domain.User), args.Error(1)
 }
 
-// MockPasswordHasher implements domain.PasswordHasher
+// MockPasswordHasher mocks domain.PasswordHasher
 type MockPasswordHasher struct {
 	mock.Mock
 }
 
-func (m *MockPasswordHasher) Hash(plain string) (string, error) {
-	args := m.Called(plain)
+func (m *MockPasswordHasher) Hash(password string) (string, error) {
+	args := m.Called(password)
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockPasswordHasher) Compare(plain string, hashed string) error {
-	args := m.Called(plain, hashed)
+func (m *MockPasswordHasher) Compare(password, hash string) error {
+	args := m.Called(password, hash)
 	return args.Error(0)
 }
 
-func TestUserUseCase_Register(t *testing.T) {
-	ctx := context.Background()
-	now := time.Now()
-
-	t.Run("success", func(t *testing.T) {
-		repo := new(MockUserRepository)
-		hasher := new(MockPasswordHasher)
-		uc := usecase.NewUserUseCase(repo, hasher)
-
-		repo.On("FindByUsername", ctx, "john").Return(nil, domain.ErrUserNotFound)
-		hasher.On("Hash", "secret123").Return("hashed_secret", nil)
-		repo.On("Create", ctx, &domain.User{
-			Username: "john",
-			Password: "hashed_secret",
-		}).Return(&domain.User{
-			ID:        1,
-			Username:  "john",
-			Password:  "hashed_secret",
-			CreatedAt: now,
-			UpdatedAt: now,
-		}, nil)
-
-		res, err := uc.Register(ctx, &domain.RegisterInput{
-			Username: "john",
-			Password: "secret123",
-		})
-
-		assert.NoError(t, err)
-		assert.Equal(t, &domain.UserOutput{
-			ID:        1,
-			Username:  "john",
-			CreatedAt: now,
-			UpdatedAt: now,
-		}, res)
-		repo.AssertExpectations(t)
-		hasher.AssertExpectations(t)
-	})
-
-	t.Run("username already exists", func(t *testing.T) {
-		repo := new(MockUserRepository)
-		hasher := new(MockPasswordHasher)
-		uc := usecase.NewUserUseCase(repo, hasher)
-
-		repo.On("FindByUsername", ctx, "john").Return(&domain.User{ID: 1, Username: "john"}, nil)
-
-		res, err := uc.Register(ctx, &domain.RegisterInput{
-			Username: "john",
-			Password: "secret123",
-		})
-
-		assert.Nil(t, res)
-		assert.ErrorIs(t, err, domain.ErrUserAlreadyExists)
-		repo.AssertExpectations(t)
-	})
-
-	t.Run("repo find error", func(t *testing.T) {
-		repo := new(MockUserRepository)
-		hasher := new(MockPasswordHasher)
-		uc := usecase.NewUserUseCase(repo, hasher)
-
-		dbErr := errors.New("db connection failure")
-		repo.On("FindByUsername", ctx, "john").Return(nil, dbErr)
-
-		res, err := uc.Register(ctx, &domain.RegisterInput{
-			Username: "john",
-			Password: "secret123",
-		})
-
-		assert.Nil(t, res)
-		assert.ErrorIs(t, err, dbErr)
-		repo.AssertExpectations(t)
-	})
-
-	t.Run("hasher invalid user error", func(t *testing.T) {
-		repo := new(MockUserRepository)
-		hasher := new(MockPasswordHasher)
-		uc := usecase.NewUserUseCase(repo, hasher)
-
-		repo.On("FindByUsername", ctx, "john").Return(nil, domain.ErrUserNotFound)
-		hasher.On("Hash", "short").Return("", domain.ErrInvalidUser)
-
-		res, err := uc.Register(ctx, &domain.RegisterInput{
-			Username: "john",
-			Password: "short",
-		})
-
-		assert.Nil(t, res)
-		assert.ErrorIs(t, err, domain.ErrInvalidUser)
-		repo.AssertExpectations(t)
-		hasher.AssertExpectations(t)
-	})
-
-	t.Run("hasher internal error", func(t *testing.T) {
-		repo := new(MockUserRepository)
-		hasher := new(MockPasswordHasher)
-		uc := usecase.NewUserUseCase(repo, hasher)
-
-		hashErr := errors.New("hash calculation failed")
-		repo.On("FindByUsername", ctx, "john").Return(nil, domain.ErrUserNotFound)
-		hasher.On("Hash", "secret123").Return("", hashErr)
-
-		res, err := uc.Register(ctx, &domain.RegisterInput{
-			Username: "john",
-			Password: "secret123",
-		})
-
-		assert.Nil(t, res)
-		assert.ErrorIs(t, err, hashErr)
-		repo.AssertExpectations(t)
-		hasher.AssertExpectations(t)
-	})
-
-	t.Run("repo create error", func(t *testing.T) {
-		repo := new(MockUserRepository)
-		hasher := new(MockPasswordHasher)
-		uc := usecase.NewUserUseCase(repo, hasher)
-
-		dbErr := errors.New("insert failed")
-		repo.On("FindByUsername", ctx, "john").Return(nil, domain.ErrUserNotFound)
-		hasher.On("Hash", "secret123").Return("hashed_secret", nil)
-		repo.On("Create", ctx, &domain.User{
-			Username: "john",
-			Password: "hashed_secret",
-		}).Return(nil, dbErr)
-
-		res, err := uc.Register(ctx, &domain.RegisterInput{
-			Username: "john",
-			Password: "secret123",
-		})
-
-		assert.Nil(t, res)
-		assert.ErrorIs(t, err, dbErr)
-		repo.AssertExpectations(t)
-		hasher.AssertExpectations(t)
-	})
+type UserUseCaseTestSuite struct {
+	suite.Suite
+	mockRepo   *MockUserRepository
+	mockHasher *MockPasswordHasher
+	useCase    domain.UserUseCase
 }
 
-func TestUserUseCase_Login(t *testing.T) {
-	ctx := context.Background()
-	now := time.Now()
-
-	t.Run("success", func(t *testing.T) {
-		repo := new(MockUserRepository)
-		hasher := new(MockPasswordHasher)
-		uc := usecase.NewUserUseCase(repo, hasher)
-
-		user := &domain.User{
-			ID:        1,
-			Username:  "john",
-			Password:  "hashed_secret",
-			CreatedAt: now,
-			UpdatedAt: now,
-		}
-
-		repo.On("FindByUsername", ctx, "john").Return(user, nil)
-		hasher.On("Compare", "secret123", "hashed_secret").Return(nil)
-
-		res, err := uc.Login(ctx, &domain.LoginInput{
-			Username: "john",
-			Password: "secret123",
-		})
-
-		assert.NoError(t, err)
-		assert.Equal(t, &domain.UserOutput{
-			ID:        1,
-			Username:  "john",
-			CreatedAt: now,
-			UpdatedAt: now,
-		}, res)
-		repo.AssertExpectations(t)
-		hasher.AssertExpectations(t)
-	})
-
-	t.Run("user not found returns ErrInvalidUser", func(t *testing.T) {
-		repo := new(MockUserRepository)
-		hasher := new(MockPasswordHasher)
-		uc := usecase.NewUserUseCase(repo, hasher)
-
-		repo.On("FindByUsername", ctx, "unknown").Return(nil, domain.ErrUserNotFound)
-
-		res, err := uc.Login(ctx, &domain.LoginInput{
-			Username: "unknown",
-			Password: "secret123",
-		})
-
-		assert.Nil(t, res)
-		assert.ErrorIs(t, err, domain.ErrInvalidUser)
-		repo.AssertExpectations(t)
-	})
-
-	t.Run("repo find error", func(t *testing.T) {
-		repo := new(MockUserRepository)
-		hasher := new(MockPasswordHasher)
-		uc := usecase.NewUserUseCase(repo, hasher)
-
-		dbErr := errors.New("db error")
-		repo.On("FindByUsername", ctx, "john").Return(nil, dbErr)
-
-		res, err := uc.Login(ctx, &domain.LoginInput{
-			Username: "john",
-			Password: "secret123",
-		})
-
-		assert.Nil(t, res)
-		assert.ErrorIs(t, err, dbErr)
-		repo.AssertExpectations(t)
-	})
-
-	t.Run("wrong password returns ErrInvalidUser", func(t *testing.T) {
-		repo := new(MockUserRepository)
-		hasher := new(MockPasswordHasher)
-		uc := usecase.NewUserUseCase(repo, hasher)
-
-		user := &domain.User{
-			ID:       1,
-			Username: "john",
-			Password: "hashed_secret",
-		}
-		repo.On("FindByUsername", ctx, "john").Return(user, nil)
-		hasher.On("Compare", "wrongpass", "hashed_secret").Return(domain.ErrInvalidUser)
-
-		res, err := uc.Login(ctx, &domain.LoginInput{
-			Username: "john",
-			Password: "wrongpass",
-		})
-
-		assert.Nil(t, res)
-		assert.ErrorIs(t, err, domain.ErrInvalidUser)
-		repo.AssertExpectations(t)
-		hasher.AssertExpectations(t)
-	})
-
-	t.Run("compare internal error", func(t *testing.T) {
-		repo := new(MockUserRepository)
-		hasher := new(MockPasswordHasher)
-		uc := usecase.NewUserUseCase(repo, hasher)
-
-		user := &domain.User{
-			ID:       1,
-			Username: "john",
-			Password: "hashed_secret",
-		}
-		compareErr := errors.New("bcrypt failure")
-		repo.On("FindByUsername", ctx, "john").Return(user, nil)
-		hasher.On("Compare", "secret123", "hashed_secret").Return(compareErr)
-
-		res, err := uc.Login(ctx, &domain.LoginInput{
-			Username: "john",
-			Password: "secret123",
-		})
-
-		assert.Nil(t, res)
-		assert.ErrorIs(t, err, compareErr)
-		repo.AssertExpectations(t)
-		hasher.AssertExpectations(t)
-	})
+// SetupTest runs before each test case
+func (s *UserUseCaseTestSuite) SetupTest() {
+	s.mockRepo = new(MockUserRepository)
+	s.mockHasher = new(MockPasswordHasher)
+	s.useCase = usecase.NewUserUseCase(s.mockRepo, s.mockHasher)
 }
 
-func TestUserUseCase_ChangePassword(t *testing.T) {
-	ctx := context.Background()
+// TestRegister_Success tests successful registration
+func (s *UserUseCaseTestSuite) TestRegister_Success() {
+	in := &domain.RegisterInput{
+		Username: "newuser",
+		Password: "plainpassword",
+	}
+	hashedPassword := "hashedpassword"
 	now := time.Now()
 
-	existingUser := &domain.User{
+	s.mockRepo.On("FindByUsername", mock.Anything, in.Username).
+		Return(nil, domain.ErrUserNotFound)
+	s.mockHasher.On("Hash", in.Password).
+		Return(hashedPassword, nil)
+	s.mockRepo.On("Create", mock.Anything, &domain.User{
+		Username: in.Username,
+		Password: hashedPassword,
+	}).Return(&domain.User{
 		ID:        1,
-		Username:  "john",
-		Password:  "old_hashed",
+		Username:  in.Username,
+		Password:  hashedPassword,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}, nil)
+
+	out, err := s.useCase.Register(context.Background(), in)
+
+	s.NoError(err)
+	s.NotNil(out)
+	s.Equal(int64(1), out.ID)
+	s.Equal(in.Username, out.Username)
+	s.mockRepo.AssertExpectations(s.T())
+	s.mockHasher.AssertExpectations(s.T())
+}
+
+// TestRegister_UsernameExists tests failure when username already exists
+func (s *UserUseCaseTestSuite) TestRegister_UsernameExists() {
+	in := &domain.RegisterInput{
+		Username: "existinguser",
+		Password: "plainpassword",
+	}
+
+	s.mockRepo.On("FindByUsername", mock.Anything, in.Username).
+		Return(&domain.User{Username: in.Username}, nil)
+
+	out, err := s.useCase.Register(context.Background(), in)
+
+	s.ErrorIs(err, domain.ErrUserAlreadyExists)
+	s.Nil(out)
+	s.mockHasher.AssertNotCalled(s.T(), "Hash")
+	s.mockRepo.AssertNotCalled(s.T(), "Create")
+}
+
+// TestLogin_Success tests successful login
+func (s *UserUseCaseTestSuite) TestLogin_Success() {
+	in := &domain.LoginInput{
+		Username: "validuser",
+		Password: "plainpassword",
+	}
+	user := &domain.User{
+		ID:        5,
+		Username:  in.Username,
+		Password:  "hashedpassword",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	s.mockRepo.On("FindByUsername", mock.Anything, in.Username).
+		Return(user, nil)
+	s.mockHasher.On("Compare", in.Password, user.Password).
+		Return(nil)
+
+	out, err := s.useCase.Login(context.Background(), in)
+
+	s.NoError(err)
+	s.NotNil(out)
+	s.Equal(user.ID, out.ID)
+	s.Equal(user.Username, out.Username)
+	s.mockRepo.AssertExpectations(s.T())
+	s.mockHasher.AssertExpectations(s.T())
+}
+
+// TestLogin_UserNotFound tests login with non-existent user
+func (s *UserUseCaseTestSuite) TestLogin_UserNotFound() {
+	in := &domain.LoginInput{
+		Username: "unknownuser",
+		Password: "plainpassword",
+	}
+
+	s.mockRepo.On("FindByUsername", mock.Anything, in.Username).
+		Return(nil, domain.ErrUserNotFound)
+
+	out, err := s.useCase.Login(context.Background(), in)
+
+	s.ErrorIs(err, domain.ErrInvalidUser)
+	s.Nil(out)
+	s.mockHasher.AssertNotCalled(s.T(), "Compare")
+}
+
+// TestLogin_WrongPassword tests login with incorrect password
+func (s *UserUseCaseTestSuite) TestLogin_WrongPassword() {
+	in := &domain.LoginInput{
+		Username: "validuser",
+		Password: "wrongpassword",
+	}
+	user := &domain.User{
+		ID:       5,
+		Username: in.Username,
+		Password: "hashedpassword",
+	}
+
+	s.mockRepo.On("FindByUsername", mock.Anything, in.Username).
+		Return(user, nil)
+	s.mockHasher.On("Compare", in.Password, user.Password).
+		Return(domain.ErrInvalidUser)
+
+	out, err := s.useCase.Login(context.Background(), in)
+
+	s.ErrorIs(err, domain.ErrInvalidUser)
+	s.Nil(out)
+	s.mockRepo.AssertExpectations(s.T())
+	s.mockHasher.AssertExpectations(s.T())
+}
+
+// TestChangePassword_Success tests successful password change
+func (s *UserUseCaseTestSuite) TestChangePassword_Success() {
+	in := &domain.ChangePasswordInput{
+		Username:         "johndoe",
+		PreviousPassword: "oldpassword",
+		NewPassword:      "newpassword",
+	}
+	oldHashed := "oldhashed"
+	newHashed := "newhashed"
+	now := time.Now()
+
+	user := &domain.User{
+		ID:        1,
+		Username:  in.Username,
+		Password:  oldHashed,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
 
-	t.Run("success", func(t *testing.T) {
-		repo := new(MockUserRepository)
-		hasher := new(MockPasswordHasher)
-		uc := usecase.NewUserUseCase(repo, hasher)
+	updatedUser := &domain.User{
+		ID:        1,
+		Username:  in.Username,
+		Password:  newHashed,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
 
-		userCopy := *existingUser
-		repo.On("FindByUsername", ctx, "john").Return(&userCopy, nil)
-		hasher.On("Compare", "old_pass", "old_hashed").Return(nil)
-		hasher.On("Hash", "new_pass").Return("new_hashed", nil)
-		repo.On("Update", ctx, &userCopy).Return(&domain.User{
-			ID:        1,
-			Username:  "john",
-			Password:  "new_hashed",
-			CreatedAt: now,
-			UpdatedAt: now.Add(time.Minute),
-		}, nil)
+	s.mockRepo.On("FindByUsername", mock.Anything, in.Username).
+		Return(user, nil)
+	s.mockHasher.On("Compare", in.PreviousPassword, oldHashed).
+		Return(nil)
+	s.mockHasher.On("Hash", in.NewPassword).
+		Return(newHashed, nil)
+	s.mockRepo.On("Update", mock.Anything, mock.MatchedBy(func(u *domain.User) bool {
+		return u.Username == in.Username && u.Password == newHashed
+	})).Return(updatedUser, nil)
 
-		res, err := uc.ChangePassword(ctx, &domain.ChangePasswordInput{
-			Username:         "john",
-			PreviousPassword: "old_pass",
-			NewPassword:      "new_pass",
-		})
+	out, err := s.useCase.ChangePassword(context.Background(), in)
 
-		assert.NoError(t, err)
-		assert.Equal(t, &domain.UserOutput{
-			ID:        1,
-			Username:  "john",
-			CreatedAt: now,
-			UpdatedAt: now.Add(time.Minute),
-		}, res)
-		repo.AssertExpectations(t)
-		hasher.AssertExpectations(t)
-	})
+	s.NoError(err)
+	s.NotNil(out)
+	s.Equal(updatedUser.ID, out.ID)
+	s.Equal(updatedUser.Username, out.Username)
+	s.mockRepo.AssertExpectations(s.T())
+	s.mockHasher.AssertExpectations(s.T())
+}
 
-	t.Run("user not found returns ErrInvalidUser", func(t *testing.T) {
-		repo := new(MockUserRepository)
-		hasher := new(MockPasswordHasher)
-		uc := usecase.NewUserUseCase(repo, hasher)
+// TestChangePassword_WrongPreviousPassword tests password change with wrong old password
+func (s *UserUseCaseTestSuite) TestChangePassword_WrongPreviousPassword() {
+	in := &domain.ChangePasswordInput{
+		Username:         "johndoe",
+		PreviousPassword: "wrongpassword",
+		NewPassword:      "newpassword",
+	}
+	user := &domain.User{
+		Username: in.Username,
+		Password: "currentpasswordhash",
+	}
 
-		repo.On("FindByUsername", ctx, "unknown").Return(nil, domain.ErrUserNotFound)
+	s.mockRepo.On("FindByUsername", mock.Anything, in.Username).
+		Return(user, nil)
+	s.mockHasher.On("Compare", in.PreviousPassword, user.Password).
+		Return(errors.New("password mismatch"))
 
-		res, err := uc.ChangePassword(ctx, &domain.ChangePasswordInput{
-			Username:         "unknown",
-			PreviousPassword: "old_pass",
-			NewPassword:      "new_pass",
-		})
+	out, err := s.useCase.ChangePassword(context.Background(), in)
 
-		assert.Nil(t, res)
-		assert.ErrorIs(t, err, domain.ErrInvalidUser)
-		repo.AssertExpectations(t)
-	})
+	s.Error(err)
+	s.Nil(out)
+	s.mockHasher.AssertNotCalled(s.T(), "Hash")
+	s.mockRepo.AssertNotCalled(s.T(), "Update")
+}
 
-	t.Run("repo find error", func(t *testing.T) {
-		repo := new(MockUserRepository)
-		hasher := new(MockPasswordHasher)
-		uc := usecase.NewUserUseCase(repo, hasher)
-
-		dbErr := errors.New("db error")
-		repo.On("FindByUsername", ctx, "john").Return(nil, dbErr)
-
-		res, err := uc.ChangePassword(ctx, &domain.ChangePasswordInput{
-			Username:         "john",
-			PreviousPassword: "old_pass",
-			NewPassword:      "new_pass",
-		})
-
-		assert.Nil(t, res)
-		assert.ErrorIs(t, err, dbErr)
-		repo.AssertExpectations(t)
-	})
-
-	t.Run("wrong previous password returns ErrInvalidUser", func(t *testing.T) {
-		repo := new(MockUserRepository)
-		hasher := new(MockPasswordHasher)
-		uc := usecase.NewUserUseCase(repo, hasher)
-
-		userCopy := *existingUser
-		repo.On("FindByUsername", ctx, "john").Return(&userCopy, nil)
-		hasher.On("Compare", "wrong_pass", "old_hashed").Return(domain.ErrInvalidUser)
-
-		res, err := uc.ChangePassword(ctx, &domain.ChangePasswordInput{
-			Username:         "john",
-			PreviousPassword: "wrong_pass",
-			NewPassword:      "new_pass",
-		})
-
-		assert.Nil(t, res)
-		assert.ErrorIs(t, err, domain.ErrInvalidUser)
-		repo.AssertExpectations(t)
-		hasher.AssertExpectations(t)
-	})
-
-	t.Run("hash new password error", func(t *testing.T) {
-		repo := new(MockUserRepository)
-		hasher := new(MockPasswordHasher)
-		uc := usecase.NewUserUseCase(repo, hasher)
-
-		userCopy := *existingUser
-		hashErr := errors.New("hash failed")
-		repo.On("FindByUsername", ctx, "john").Return(&userCopy, nil)
-		hasher.On("Compare", "old_pass", "old_hashed").Return(nil)
-		hasher.On("Hash", "new_pass").Return("", hashErr)
-
-		res, err := uc.ChangePassword(ctx, &domain.ChangePasswordInput{
-			Username:         "john",
-			PreviousPassword: "old_pass",
-			NewPassword:      "new_pass",
-		})
-
-		assert.Nil(t, res)
-		assert.ErrorIs(t, err, hashErr)
-		repo.AssertExpectations(t)
-		hasher.AssertExpectations(t)
-	})
-
-	t.Run("repo update error", func(t *testing.T) {
-		repo := new(MockUserRepository)
-		hasher := new(MockPasswordHasher)
-		uc := usecase.NewUserUseCase(repo, hasher)
-
-		userCopy := *existingUser
-		updateErr := errors.New("update failed")
-		repo.On("FindByUsername", ctx, "john").Return(&userCopy, nil)
-		hasher.On("Compare", "old_pass", "old_hashed").Return(nil)
-		hasher.On("Hash", "new_pass").Return("new_hashed", nil)
-		repo.On("Update", ctx, &userCopy).Return(nil, updateErr)
-
-		res, err := uc.ChangePassword(ctx, &domain.ChangePasswordInput{
-			Username:         "john",
-			PreviousPassword: "old_pass",
-			NewPassword:      "new_pass",
-		})
-
-		assert.Nil(t, res)
-		assert.ErrorIs(t, err, updateErr)
-		repo.AssertExpectations(t)
-		hasher.AssertExpectations(t)
-	})
+func TestUserUseCaseTestSuite(t *testing.T) {
+	suite.Run(t, new(UserUseCaseTestSuite))
 }
