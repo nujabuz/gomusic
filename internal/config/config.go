@@ -11,18 +11,20 @@ import (
 type Config struct {
 	DatabaseConfig DatabaseConfig `mapstructure:"database"`
 	AppConfig      AppConfig      `mapstructure:"app"`
+	TokenConfig    TokenConfig    `mapstructure:"token"`
 }
 
 type DatabaseConfig struct {
-	Username    string `mapstructure:"username" validate:"required"`
-	Password    string `mapstructure:"password" validate:"required"`
-	Host        string `mapstructure:"host" validate:"required"`
-	Name        string `mapstructure:"name" validate:"required"`
-	SSL         string `mapstructure:"ssl" validate:"required"`
-	Port        int    `mapstructure:"port" validate:"required,min=1,max=65535"`
-	MaxConn     int    `mapstructure:"max" validate:"required,min=1"`
-	MaxIdleConn int    `mapstructure:"idle" validate:"required,min=1"`
-	MaxLifetime int    `mapstructure:"lifetime" validate:"required,min=1"`
+	Username        string `mapstructure:"username" validate:"required"`
+	Password        string `mapstructure:"password" validate:"required"`
+	Host            string `mapstructure:"host" validate:"required"`
+	Name            string `mapstructure:"name" validate:"required"`
+	SSL             string `mapstructure:"ssl" validate:"required"`
+	Port            int    `mapstructure:"port" validate:"required,min=1,max=65535"`
+	MaxConn         int    `mapstructure:"max" validate:"required,min=1"`
+	MaxIdleConn     int    `mapstructure:"idle" validate:"required,min=1"`
+	MaxLifetime     int    `mapstructure:"lifetime" validate:"required,min=1"`
+	TransactionTime int    `mapstructure:"transactionTime" validate:"required,min=1"`
 }
 
 type AppConfig struct {
@@ -35,6 +37,12 @@ type AppConfig struct {
 	ReadTimeout   int    `mapstructure:"readTimeout" validate:"required,min=1"`
 	WriteTimeout  int    `mapstructure:"writeTimeout" validate:"required,min=1"`
 	IdleTimeout   int    `mapstructure:"idleTimeout" validate:"required,min=1"`
+}
+
+type TokenConfig struct {
+	Key        string `mapstructure:"key" validate:"required,min=8,max=72"`
+	Issuer     string `mapstructure:"issuer" validate:"required,min=3"`
+	Expiration int    `mapstructure:"expiration" valdate:"required,min=1"`
 }
 
 func NewConfig(validate *validator.Validate) *Config {

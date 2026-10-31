@@ -21,7 +21,10 @@ func NewDatabase(cfg *DatabaseConfig) (*gorm.DB, *sql.DB) {
 		cfg.SSL,
 	)
 
-	db, err := gorm.Open(postgres.Open(dsn))
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		SkipDefaultTransaction:    true,
+		DefaultTransactionTimeout: time.Duration(cfg.TransactionTime) * time.Second,
+	})
 	if err != nil {
 		slog.Error("failed when initializing db", "error", err)
 		os.Exit(1)

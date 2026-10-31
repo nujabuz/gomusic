@@ -11,10 +11,12 @@ import (
 type userUseCase struct {
 	repo   domain.UserRepository
 	hasher domain.PasswordHasher
+	token  domain.TokenGenerator
 }
 
-func NewUserUseCase(repo domain.UserRepository, hasher domain.PasswordHasher) domain.UserUseCase {
+func NewUserUseCase(repo domain.UserRepository, hasher domain.PasswordHasher, token domain.TokenGenerator) domain.UserUseCase {
 	return &userUseCase{
+		token:  token,
 		repo:   repo,
 		hasher: hasher,
 	}
@@ -73,9 +75,23 @@ func (uc *userUseCase) Login(ctx context.Context, in *domain.LoginInput) (*domai
 		return nil, fmt.Errorf("login.compare: compare password: %w", err)
 	}
 
+	token, err := uc.token.NewTokenUser(user)
+	if err != nil {
+		return nil, fmt.Errorf("login.token: new token user: %w", err)
+	}
+	user.Token = token
+
+	if err := uc.repo.Update(ctx, user); err != nil {
+		if errors.Is(err, domain.ErrUserNotFound) {
+			return nil, err
+		}
+		return nil, fmt.Errorf("login.update: add token to user: %w", err)
+	}
+
 	out := new(domain.UserOutput)
 	out.ID = user.ID
 	out.Username = user.Username
+	out.Token = user.Token
 	out.CreatedAt = user.CreatedAt
 	out.UpdatedAt = user.UpdatedAt
 
@@ -102,8 +118,7 @@ func (uc *userUseCase) ChangePassword(ctx context.Context, in *domain.ChangePass
 
 	user.Password = hashed
 
-	updatedUser, err := uc.repo.Update(ctx, user)
-	if err != nil {
+	if err := uc.repo.Update(ctx, user); err != nil {
 		if errors.Is(err, domain.ErrUserNotFound) {
 			return nil, err
 		}
@@ -111,10 +126,10 @@ func (uc *userUseCase) ChangePassword(ctx context.Context, in *domain.ChangePass
 	}
 
 	out := new(domain.UserOutput)
-	out.ID = updatedUser.ID
-	out.Username = updatedUser.Username
-	out.UpdatedAt = updatedUser.UpdatedAt
-	out.CreatedAt = updatedUser.CreatedAt
+	out.ID = user.ID
+	out.Username = user.Username
+	out.UpdatedAt = user.UpdatedAt
+	out.CreatedAt = user.CreatedAt
 
 	return out, nil
 }
