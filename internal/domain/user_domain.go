@@ -16,6 +16,7 @@ type User struct {
 	ID        int64
 	Username  string
 	Password  string // hashed Password
+	Token     string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -45,17 +46,23 @@ type ChangePasswordInput struct {
 type UserOutput struct {
 	ID        int64
 	Username  string
+	Token     string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
 
 type UserRepository interface {
 	Create(ctx context.Context, user *User) (*User, error)
-	Update(ctx context.Context, user *User) (*User, error)
+	Update(ctx context.Context, user *User) error
 	FindByUsername(ctx context.Context, username string) (*User, error)
 }
 
 type PasswordHasher interface {
 	Hash(plain string) (string, error)
 	Compare(plain string, hashed string) error
+}
+
+type TokenGenerator interface {
+	NewTokenUser(user *User) (string, error)
+	ParseTokenUser(tokenString string) (string, error)
 }

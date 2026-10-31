@@ -24,26 +24,28 @@ func (v *structValidator) Validate(out any) error {
 }
 
 type App struct {
-	Fiber       *fiber.App
-	Config      AppConfig
-	UserHandler rest.UserHandler
+	Fiber          *fiber.App
+	Config         AppConfig
+	UserHandler    rest.UserHandler
+	AuthMiddleware fiber.Handler
 }
 
-func NewApp(cfg AppConfig, vld *validator.Validate, userHandler rest.UserHandler) *App {
+func NewApp(cfg AppConfig, vld *validator.Validate, userHandler rest.UserHandler, authMiddleware fiber.Handler) *App {
 	app := fiber.New(fiber.Config{
 		AppName:         cfg.Name,
 		StrictRouting:   cfg.StrictRouting,
 		CaseSensitive:   cfg.CaseSensitive,
 		BodyLimit:       cfg.BodyLimit,
-		IdleTimeout:     time.Duration(cfg.IdleTimeout) * time.Minute,
-		ReadTimeout:     time.Duration(cfg.ReadTimeout) * time.Minute,
-		WriteTimeout:    time.Duration(cfg.WriteTimeout) * time.Minute,
+		IdleTimeout:     time.Duration(cfg.IdleTimeout) * time.Second,
+		ReadTimeout:     time.Duration(cfg.ReadTimeout) * time.Second,
+		WriteTimeout:    time.Duration(cfg.WriteTimeout) * time.Second,
 		StructValidator: &structValidator{validate: vld},
 	})
 	return &App{
-		Config:      cfg,
-		Fiber:       app,
-		UserHandler: userHandler,
+		Config:         cfg,
+		Fiber:          app,
+		UserHandler:    userHandler,
+		AuthMiddleware: authMiddleware,
 	}
 }
 
@@ -82,10 +84,11 @@ func (a *App) Start() error {
 func (a *App) SetupRoute() {
 	api := a.Fiber.Group("/api/v1")
 
-	a.setupAuthRoute(api)
+	a.setupAutheRoute(api)
+	a.setupAuthoRoute(api)
 }
 
-func (a *App) setupAuthRoute(api fiber.Router) {
+func (a *App) setupAutheRoute(api fiber.Router) {
 	auth := api.Group("/auth")
 	auth.Use(limiter.New(limiter.Config{
 		Max:               3,
@@ -98,4 +101,18 @@ func (a *App) setupAuthRoute(api fiber.Router) {
 
 	auth.Post("/register", a.UserHandler.Register)
 	auth.Post("/login", a.UserHandler.Login)
+}
+
+func (a *App) setupAuthoRoute(api fiber.Router) {
+	music := api.Group("/music")
+
+	music.Use(a.AuthMiddleware)
+
+	music.Get("/ping", func(ctx fiber.Ctx) error {
+		username, ok := fiber.ValueFromContext[string](ctx, "username")
+		if ok {
+			return dto.ResponseSuccess(ctx, fiber.StatusOK, "pong!", map[string]string{"username": username})
+		}
+		return dto.ResponseFailed(ctx, fiber.StatusUnauthorized, "not pong!", fiber.ErrUnauthorized)
+	})
 }

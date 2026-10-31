@@ -6,6 +6,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/nujabuz/music-cloud/internal/config"
 	"github.com/nujabuz/music-cloud/internal/delivery/rest"
+	"github.com/nujabuz/music-cloud/internal/delivery/rest/middleware"
 	"github.com/nujabuz/music-cloud/internal/repository/postgres"
 	"github.com/nujabuz/music-cloud/internal/security"
 	"github.com/nujabuz/music-cloud/internal/usecase"
@@ -15,6 +16,7 @@ func main() {
 	vld := validator.New()
 	cfg := config.NewConfig(vld)
 	hsr := security.NewPasswordHasher()
+	tkn := security.NewTokenGenerator(cfg.TokenConfig)
 
 	db, connection := config.NewDatabase(&cfg.DatabaseConfig)
 	defer func() {
@@ -25,10 +27,12 @@ func main() {
 	}()
 
 	userRepository := postgres.NewUserRepository(db)
-	userUseCase := usecase.NewUserUseCase(userRepository, hsr)
+	userUseCase := usecase.NewUserUseCase(userRepository, hsr, tkn)
 	userHandler := rest.NewUserHandler(userUseCase)
 
-	app := config.NewApp(cfg.AppConfig, vld, userHandler)
+	authMiddleware := middleware.NewAuthMiddleware(tkn)
+
+	app := config.NewApp(cfg.AppConfig, vld, userHandler, authMiddleware)
 	app.SetupRoute()
 	if err := app.Start(); err != nil {
 		slog.Error("server shutdown with error", "error", err)

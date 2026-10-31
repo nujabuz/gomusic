@@ -59,8 +59,8 @@ func (h *userHandler) Login(ctx fiber.Ctx) error {
 	}
 
 	res := new(dto.ResponseUser)
-	res.ID = out.ID
 	res.Username = out.Username
+	res.Token = out.Token
 
 	return dto.ResponseSuccess(ctx, fiber.StatusOK, "user login was successful", res)
 }

@@ -13,6 +13,7 @@ type userModel struct {
 	ID        int64     `gorm:"column:id;primaryKey;autoIncrement"`
 	Username  string    `gorm:"column:username;size:50;unique;not null"`
 	Password  string    `gorm:"column:password;size:72;not null"`
+	Token     string    `gorm:"column:token;size:255"`
 	CreatedAt time.Time `gorm:"column:created_at;not null"`
 	UpdatedAt time.Time `gorm:"column:updated_at;not null"`
 }
@@ -44,19 +45,9 @@ func (r *userRepository) Create(ctx context.Context, user *domain.User) (*domain
 	return d, nil
 }
 
-func (r *userRepository) Update(ctx context.Context, user *domain.User) (*domain.User, error) {
+func (r *userRepository) Update(ctx context.Context, user *domain.User) error {
 	m := r.toModel(user)
-
-	res := r.db.WithContext(ctx).Model(m).Where("username = ?", m.Username).Updates(m)
-	if res.Error != nil {
-		return nil, res.Error
-	}
-	if res.RowsAffected == 0 {
-		return nil, domain.ErrUserNotFound
-	}
-	d := r.toDomain(m)
-
-	return d, nil
+	return r.db.Save(&m).Error
 }
 
 func (r *userRepository) FindByUsername(ctx context.Context, username string) (*domain.User, error) {
@@ -74,27 +65,22 @@ func (r *userRepository) FindByUsername(ctx context.Context, username string) (*
 }
 
 func (r *userRepository) toModel(user *domain.User) *userModel {
-	if user == nil {
-		return nil
-	}
-
 	m := new(userModel)
 	m.ID = user.ID
 	m.Username = user.Username
 	m.Password = user.Password
+	m.Token = user.Token
 	m.CreatedAt = user.CreatedAt
 	m.UpdatedAt = user.UpdatedAt
 
 	return m
 }
 func (r *userRepository) toDomain(user *userModel) *domain.User {
-	if user == nil {
-		return nil
-	}
 	d := new(domain.User)
 	d.ID = user.ID
 	d.Username = user.Username
 	d.Password = user.Password
+	d.Token = user.Token
 	d.CreatedAt = user.CreatedAt
 	d.UpdatedAt = user.UpdatedAt
 
