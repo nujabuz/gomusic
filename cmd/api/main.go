@@ -2,42 +2,31 @@ package main
 
 import (
 	"log/slog"
+	"os"
 
-	"github.com/go-playground/validator/v10"
-	"github.com/nujabuz/music-cloud/internal/config"
-	"github.com/nujabuz/music-cloud/internal/delivery/rest"
-	"github.com/nujabuz/music-cloud/internal/delivery/rest/middleware"
-	"github.com/nujabuz/music-cloud/internal/repository/postgres"
-	"github.com/nujabuz/music-cloud/internal/security"
-	"github.com/nujabuz/music-cloud/internal/usecase"
+	"github.com/nujabuz/gomusic/internal/config"
+	"github.com/nujabuz/gomusic/internal/delivery/rest"
+	"github.com/nujabuz/gomusic/internal/repository/postgres"
+	"github.com/nujabuz/gomusic/internal/security"
+	"github.com/nujabuz/gomusic/internal/usecase"
 )
 
 func main() {
-	vld := validator.New()
-	cfg := config.NewConfig(vld)
-	hsr := security.NewPasswordHasher()
-	tkn := security.NewTokenGenerator(cfg.TokenConfig)
+	cfg := config.NewConfig()
+	db := config.NewDatabase(cfg.Database)
 
-	db, connection := config.NewDatabase(&cfg.DatabaseConfig)
-	defer func() {
-		slog.Info("closing database connection pool")
-		if err := connection.Close(); err != nil {
-			slog.Error("error closing database", "error", err)
-		}
-	}()
+	hasher := security.NewPasswordHasher()
 
 	userRepository := postgres.NewUserRepository(db)
-	userUseCase := usecase.NewUserUseCase(userRepository, hsr, tkn)
+	userUseCase := usecase.NewUserUseCase(userRepository, hasher)
 	userHandler := rest.NewUserHandler(userUseCase)
 
-	authMiddleware := middleware.NewAuthMiddleware(tkn)
+	app := config.NewApp(
+		userHandler,
+	)
 
-	app := config.NewApp(cfg.AppConfig, vld, userHandler, authMiddleware)
-	app.SetupRoute()
-	if err := app.Start(); err != nil {
-		slog.Error("server shutdown with error", "error", err)
-	} else {
-		slog.Info("server exited cleanly")
+	if err := app.Listen(cfg.App.Addr); err != nil {
+		slog.Error("fiber", "error", err)
+		os.Exit(1)
 	}
-
 }
