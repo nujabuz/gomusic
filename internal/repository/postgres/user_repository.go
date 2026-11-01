@@ -5,84 +5,55 @@ import (
 	"errors"
 	"time"
 
-	"github.com/nujabuz/music-cloud/internal/domain"
+	"github.com/nujabuz/gomusic/internal/entity"
 	"gorm.io/gorm"
 )
 
 type userModel struct {
-	ID        int64     `gorm:"column:id;primaryKey;autoIncrement"`
-	Username  string    `gorm:"column:username;size:50;unique;not null"`
-	Password  string    `gorm:"column:password;size:72;not null"`
-	Token     string    `gorm:"column:token;size:255"`
-	CreatedAt time.Time `gorm:"column:created_at;not null"`
-	UpdatedAt time.Time `gorm:"column:updated_at;not null"`
+	ID        int64     `gorm:"primaryKey"`
+	Username  string    `gorm:"unique;not null"`
+	Password  string    `gorm:"not null"`
+	CreatedAt time.Time `gorm:"not null"`
+	UpdatedAt time.Time `gorm:"not null"`
 }
 
-func (userModel) TableName() string {
-	return "users"
+type userRepository struct {
+	db *gorm.DB
 }
 
-type userRepository struct{ db *gorm.DB }
-
-func NewUserRepository(db *gorm.DB) domain.UserRepository {
-	return &userRepository{
-		db: db,
-	}
+func NewUserRepository(db *gorm.DB) entity.UserRepository {
+	return &userRepository{db: db}
 }
 
-func (r *userRepository) Create(ctx context.Context, user *domain.User) (*domain.User, error) {
+func (r *userRepository) Create(ctx context.Context, user *entity.User) error {
 	m := r.toModel(user)
-
-	err := r.db.WithContext(ctx).Create(m).Error
-	if err != nil {
+	if err := r.db.WithContext(ctx).Create(m).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return nil, domain.ErrUserAlreadyExists
+			return entity.ErrUserAlreadyExists
 		}
-		return nil, err
+		return err
 	}
-	d := r.toDomain(m)
-
-	return d, nil
+	return nil
 }
 
-func (r *userRepository) Update(ctx context.Context, user *domain.User) error {
+func (r *userRepository) Find(ctx context.Context, user *entity.User) (*entity.User, error) {
 	m := r.toModel(user)
-	return r.db.Save(&m).Error
-}
-
-func (r *userRepository) FindByUsername(ctx context.Context, username string) (*domain.User, error) {
-	user := new(userModel)
-	err := r.db.WithContext(ctx).Where("username = ?", username).Take(user).Error
-	if err != nil {
+	if err := r.db.WithContext(ctx).Where(m).First(m).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, domain.ErrUserNotFound
+			return nil, entity.ErrUserNotFound
 		}
 		return nil, err
 	}
-	d := r.toDomain(user)
-
-	return d, nil
+	return r.toEntity(m), nil
 }
 
-func (r *userRepository) toModel(user *domain.User) *userModel {
-	m := new(userModel)
-	m.ID = user.ID
-	m.Username = user.Username
-	m.Password = user.Password
-	m.Token = user.Token
-	m.CreatedAt = user.CreatedAt
-	m.UpdatedAt = user.UpdatedAt
-
-	return m
+// helper
+func (r *userRepository) toModel(user *entity.User) *userModel {
+	return &userModel{ID: user.ID, Username: user.Username, Password: user.Password, CreatedAt: user.CreatedAt, UpdatedAt: user.UpdatedAt}
 }
-func (r *userRepository) toDomain(user *userModel) *domain.User {
-	d := new(domain.User)
-	d.ID = user.ID
-	d.Username = user.Username
-	d.Password = user.Password
-	d.Token = user.Token
-	d.CreatedAt = user.CreatedAt
-	d.UpdatedAt = user.UpdatedAt
 
-	return d
+func (r *userRepository) toEntity(user *userModel) *entity.User {
+	return &entity.User{ID: user.ID, Username: user.Username, Password: user.Password, CreatedAt: user.CreatedAt, UpdatedAt: user.UpdatedAt}
 }
+
+func (userModel) TableName() string { return "users" }

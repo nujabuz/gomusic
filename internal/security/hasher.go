@@ -1,26 +1,17 @@
 package security
 
 import (
-	"errors"
-
-	"github.com/nujabuz/music-cloud/internal/domain"
+	"github.com/nujabuz/gomusic/internal/usecase"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type passwordHasher struct{}
 
-func NewPasswordHasher() domain.PasswordHasher {
+func NewPasswordHasher() usecase.PasswordHasher {
 	return &passwordHasher{}
 }
 
-func (passwordHasher) Hash(plain string) (string, error) {
+func (h *passwordHasher) Hash(plain string) (string, error) {
 	hashed, err := bcrypt.GenerateFromPassword([]byte(plain), bcrypt.DefaultCost)
 	return string(hashed), err
-}
-func (passwordHasher) Compare(plain string, hashed string) error {
-	err := bcrypt.CompareHashAndPassword([]byte(hashed), []byte(plain))
-	if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
-		return domain.ErrInvalidUser
-	}
-	return err
 }

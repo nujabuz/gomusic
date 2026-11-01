@@ -1,66 +1,76 @@
 package rest
 
 import (
+	"time"
+
 	"github.com/gofiber/fiber/v3"
-	"github.com/nujabuz/music-cloud/internal/delivery/rest/dto"
-	"github.com/nujabuz/music-cloud/internal/domain"
+	"github.com/nujabuz/gomusic/internal/entity"
 )
 
-type UserHandler interface {
-	Register(ctx fiber.Ctx) error
-	Login(ctx fiber.Ctx) error
+type RequestUserRegister struct {
+	Username string `json:"username" validate:"required,min=3,max=16"`
+	Password string `json:"password" validate:"required,min=8,max=24"`
 }
 
-type userHandler struct {
-	UserUseCase domain.UserUseCase
+type ResponseUser struct {
+	ID        int64     `json:"id,omitempty"`
+	Username  string    `json:"username,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitzero"`
+	UpdatedAt time.Time `json:"updated_at,omitzero"`
 }
 
-func NewUserHandler(userUseCase domain.UserUseCase) UserHandler {
-	return &userHandler{
+type UserHandler struct {
+	UserUseCase entity.UserUseCase
+}
+
+func NewUserHandler(
+	userUseCase entity.UserUseCase,
+) *UserHandler {
+	return &UserHandler{
 		UserUseCase: userUseCase,
 	}
 }
 
-func (h *userHandler) Register(ctx fiber.Ctx) error {
-	request := new(dto.RequestRegister)
+func (h *UserHandler) Routes(api fiber.Router) {
+	auth := api.Group("/auth")
+	auth.Post("/register", h.register)
+
+	users := api.Group("/users")
+	users.Get("/:username<betweenLen(3,16)>", h.findByUsername)
+}
+
+func (h *UserHandler) register(ctx fiber.Ctx) error {
+	request := new(RequestUserRegister)
 	if err := ctx.Bind().Body(request); err != nil {
-		return dto.BindValidation(ctx, err)
+		return ResponseFailedParseRequest(ctx, err)
 	}
 
-	in := new(domain.RegisterInput)
-	in.Username = request.Username
-	in.Password = request.Password
-
-	out, err := h.UserUseCase.Register(ctx, in)
+	out, err := h.UserUseCase.Register(ctx, &entity.RegisterInput{Username: request.Username, Password: request.Password})
 	if err != nil {
-		return dto.TranslateDomainError(ctx, err)
+		return EntityErrorTranslator(ctx, err)
 	}
 
-	res := new(dto.ResponseUser)
+	res := new(ResponseUser)
 	res.Username = out.Username
 	res.CreatedAt = out.CreatedAt
 
-	return dto.ResponseSuccess(ctx, fiber.StatusOK, "user registration was successful", res)
+	return ResponseSuccess(ctx, fiber.StatusCreated, entity.SuccessRegister, res)
 }
 
-func (h *userHandler) Login(ctx fiber.Ctx) error {
-	request := new(dto.RequestLogin)
-	if err := ctx.Bind().Body(request); err != nil {
-		return dto.BindValidation(ctx, err)
-	}
+// helper
+func (h *UserHandler) findByUsername(ctx fiber.Ctx) error {
+	username := fiber.Params[string](ctx, "username")
 
-	in := new(domain.LoginInput)
-	in.Username = request.Username
-	in.Password = request.Password
-
-	out, err := h.UserUseCase.Login(ctx, in)
+	out, err := h.UserUseCase.FindUserByUsername(ctx, username)
 	if err != nil {
-		return dto.TranslateDomainError(ctx, err)
+		return EntityErrorTranslator(ctx, err)
 	}
 
-	res := new(dto.ResponseUser)
+	res := new(ResponseUser)
+	res.ID = out.ID
 	res.Username = out.Username
-	res.Token = out.Token
+	res.CreatedAt = out.CreatedAt
+	res.UpdatedAt = out.UpdatedAt
 
-	return dto.ResponseSuccess(ctx, fiber.StatusOK, "user login was successful", res)
+	return ResponseSuccess(ctx, fiber.StatusFound, entity.SuccessFindbyUsername, res)
 }
