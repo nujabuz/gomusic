@@ -1,3 +1,4 @@
+// Package entity
 package entity
 
 import "errors"
@@ -9,6 +10,7 @@ var (
 	ErrNotFound         = errors.New("not found")
 
 	// user errors
-	ErrUserNotFound      = errors.New("user not found.")
-	ErrUserAlreadyExists = errors.New("user already exists.")
+	ErrUserNotFound      = errors.New("user not found")
+	ErrUserAlreadyExists = errors.New("user already exists")
+	ErrUserInvalid       = errors.New("invalid user")
 )

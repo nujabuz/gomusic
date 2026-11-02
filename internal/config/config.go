@@ -1,3 +1,4 @@
+// Package config
 package config
 
 import (
@@ -10,6 +11,13 @@ import (
 type Config struct {
 	Database *ConfigDatabase `mapstructure:"database"`
 	App      *ConfigApp      `mapstructure:"app"`
+	JWT      *ConfigJWT      `mapstructure:"jwt"`
+}
+
+type ConfigJWT struct {
+	Issuer            string `mapstructure:"issuer"`
+	Key               string `mapstructure:"key"`
+	ExpiratedInSecond int    `mapstructure:"exp"`
 }
 
 func NewConfig() *Config {

@@ -1,3 +1,6 @@
+// Package main Entry point of the application. Responsible for loading configuration, initializing database connections,
+// instantiating repositories & use cases, wiring dependencies together (Dependency Injection),
+// and starting the HTTP server.
 package main
 
 import (
@@ -16,13 +19,19 @@ func main() {
 	db := config.NewDatabase(cfg.Database)
 
 	hasher := security.NewPasswordHasher()
+	tokenGenerator := security.NewTokenGenerator(cfg.JWT.Issuer, cfg.JWT.ExpiratedInSecond, cfg.JWT.Key)
 
 	userRepository := postgres.NewUserRepository(db)
-	userUseCase := usecase.NewUserUseCase(userRepository, hasher)
+
+	userUseCase := usecase.NewUserUseCase(userRepository)
+	authUseCase := usecase.NewAuthUseCase(hasher, tokenGenerator, userRepository, userUseCase)
+
 	userHandler := rest.NewUserHandler(userUseCase)
+	authhandler := rest.NewAuthHandler(authUseCase)
 
 	app := config.NewApp(
 		userHandler,
+		authhandler,
 	)
 
 	if err := app.Listen(cfg.App.Addr); err != nil {

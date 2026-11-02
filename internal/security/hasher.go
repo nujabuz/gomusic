@@ -1,6 +1,10 @@
+// Package security
 package security
 
 import (
+	"errors"
+
+	"github.com/nujabuz/gomusic/internal/entity"
 	"github.com/nujabuz/gomusic/internal/usecase"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -14,4 +18,13 @@ func NewPasswordHasher() usecase.PasswordHasher {
 func (h *passwordHasher) Hash(plain string) (string, error) {
 	hashed, err := bcrypt.GenerateFromPassword([]byte(plain), bcrypt.DefaultCost)
 	return string(hashed), err
+}
+
+func (h *passwordHasher) Compare(hashedPassword string, password string) error {
+	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+	if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+		return entity.ErrUserInvalid
+	}
+
+	return err
 }

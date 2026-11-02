@@ -5,6 +5,7 @@ go 1.27.3
 require (
 	github.com/go-playground/validator/v10 v10.30.5
 	github.com/gofiber/fiber/v3 v3.6.1
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/spf13/viper v1.21.0
 	golang.org/x/crypto v0.58.0
 	gorm.io/driver/postgres v1.6.3

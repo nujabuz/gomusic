@@ -19,11 +19,23 @@ type UserRepository interface {
 }
 
 type UserUseCase interface {
-	Register(ctx context.Context, in *RegisterInput) (*UserOutput, error)
 	FindUserByUsername(ctx context.Context, username string) (*UserOutput, error)
+
+	// helper
+	ToUserOutput(user *User) *UserOutput
+}
+
+type AuthUseCase interface {
+	Register(ctx context.Context, in *RegisterInput) (*UserOutput, error)
+	Login(ctx context.Context, in *LoginInput) (string, error)
 }
 
 type RegisterInput struct {
+	Username string
+	Password string
+}
+
+type LoginInput struct {
 	Username string
 	Password string
 }
