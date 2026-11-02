@@ -19,13 +19,14 @@ func (v *structValidator) Validate(out any) error {
 	return v.validate.Struct(out)
 }
 
-func NewApp(userHandler *rest.UserHandler) *fiber.App {
+func NewApp(userHandler *rest.UserHandler, authHandler rest.AuthHandler) *fiber.App {
 	app := fiber.New(fiber.Config{
 		StructValidator: &structValidator{validate: validator.New()},
 	})
 
 	api := app.Group("/api/v1")
 
+	authHandler.Routes(api)
 	userHandler.Routes(api)
 
 	app.Use(func(ctx fiber.Ctx) error {

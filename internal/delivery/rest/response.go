@@ -1,3 +1,4 @@
+// Package rest
 package rest
 
 import (
@@ -31,6 +32,8 @@ func EntityErrorTranslator(ctx fiber.Ctx, err error) error {
 		return ResponseFailed(ctx, fiber.StatusNotFound, err.Error(), fiber.ErrNotFound)
 	case errors.Is(err, entity.ErrUserAlreadyExists):
 		return ResponseFailed(ctx, fiber.StatusConflict, err.Error(), fiber.ErrConflict)
+	case errors.Is(err, entity.ErrUserInvalid):
+		return ResponseFailed(ctx, fiber.StatusUnauthorized, err.Error(), fiber.ErrUnauthorized)
 
 	// unexpected error
 	default:
@@ -40,8 +43,7 @@ func EntityErrorTranslator(ctx fiber.Ctx, err error) error {
 }
 
 func ResponseFailedParseRequest(ctx fiber.Ctx, err error) error {
-	var validationErrors validator.ValidationErrors
-	if errors.As(err, &validationErrors) {
+	if validationErrors, ok := errors.AsType[validator.ValidationErrors](err); ok {
 		out := make([]fiber.Map, 0, len(validationErrors))
 		for _, e := range validationErrors {
 			// e.Field() - field name, e.Tag() - failed rule,
