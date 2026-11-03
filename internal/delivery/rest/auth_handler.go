@@ -3,6 +3,7 @@ package rest
 import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/nujabuz/gomusic/internal/entity"
+	"github.com/nujabuz/gomusic/internal/entity/port"
 )
 
 type RequestUserRegister struct {
@@ -20,10 +21,10 @@ type AuthHandler interface {
 }
 
 type authHandler struct {
-	authUseCase entity.AuthUseCase
+	authUseCase port.AuthUseCase
 }
 
-func NewAuthHandler(authUseCase entity.AuthUseCase) AuthHandler {
+func NewAuthHandler(authUseCase port.AuthUseCase) AuthHandler {
 	return &authHandler{
 		authUseCase: authUseCase,
 	}
@@ -42,14 +43,13 @@ func (h *authHandler) register(ctx fiber.Ctx) error {
 		return ResponseFailedParseRequest(ctx, err)
 	}
 
-	out, err := h.authUseCase.Register(ctx, &entity.RegisterInput{Username: request.Username, Password: request.Password})
+	out, err := h.authUseCase.Register(ctx, &port.RegisterInput{Username: request.Username, Password: request.Password})
 	if err != nil {
 		return EntityErrorTranslator(ctx, err)
 	}
 
 	res := new(ResponseUser)
 	res.Username = out.Username
-	res.CreatedAt = out.CreatedAt
 
 	return ResponseSuccess(ctx, fiber.StatusCreated, entity.SuccessRegister, res)
 }
@@ -60,13 +60,13 @@ func (h *authHandler) login(ctx fiber.Ctx) error {
 		return ResponseFailedParseRequest(ctx, err)
 	}
 
-	token, err := h.authUseCase.Login(ctx, &entity.LoginInput{Username: request.Username, Password: request.Password})
+	out, err := h.authUseCase.Login(ctx, &port.LoginInput{Username: request.Username, Password: request.Password})
 	if err != nil {
 		return EntityErrorTranslator(ctx, err)
 	}
 
 	res := new(ResponseUser)
-	res.Token = token
+	res.Token = out.Token
 
 	return ResponseSuccess(ctx, fiber.StatusCreated, entity.SuccessRegister, res)
 }

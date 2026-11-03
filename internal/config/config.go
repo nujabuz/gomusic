@@ -38,5 +38,6 @@ func NewConfig() *Config {
 		os.Exit(1)
 	}
 
+	slog.Info("successfully read the config.yaml file")
 	return cfg
 }

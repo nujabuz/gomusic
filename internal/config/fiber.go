@@ -1,6 +1,8 @@
 package config
 
 import (
+	"log/slog"
+
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
 	"github.com/nujabuz/gomusic/internal/delivery/rest"
@@ -33,5 +35,6 @@ func NewApp(userHandler *rest.UserHandler, authHandler rest.AuthHandler) *fiber.
 		return rest.ResponseFailed(ctx, fiber.StatusNotFound, entity.ErrNotFound.Error(), fiber.ErrNotFound) // => 404 "Not Found"
 	})
 
+	slog.Info("successfully initialized fiber app")
 	return app
 }

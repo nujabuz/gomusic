@@ -1,6 +1,7 @@
 package config
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"log/slog"
@@ -21,7 +22,7 @@ type ConfigDatabase struct {
 	Port     int    `mapstructure:"port"`
 }
 
-func NewDatabase(cfg *ConfigDatabase) *gorm.DB {
+func NewDatabase(cfg *ConfigDatabase) (*gorm.DB, *sql.DB) {
 	dsn := fmt.Sprintf("user=%s password=%s host=%s port=%d dbname=%s sslmode=%s", cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.DBName, cfg.SSL)
 	newLogger := logger.New(
 		log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
@@ -42,6 +43,18 @@ func NewDatabase(cfg *ConfigDatabase) *gorm.DB {
 		slog.Error("gorm", "error", err)
 		os.Exit(1)
 	}
+	slog.Info("successfully initialized the database")
 
-	return db
+	dbConn, err := db.DB()
+	if err != nil {
+		slog.Error("gorm", "error", err)
+		os.Exit(1)
+	}
+
+	dbConn.SetMaxIdleConns(5)
+	dbConn.SetMaxOpenConns(10)
+	dbConn.SetConnMaxLifetime(1 * time.Minute)
+	slog.Info("successfully started the underlying database connection")
+
+	return db, dbConn
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/nujabuz/gomusic/internal/entity"
+	"github.com/nujabuz/gomusic/internal/entity/port"
 	"gorm.io/gorm"
 )
 
@@ -22,7 +23,7 @@ type userRepository struct {
 	db *gorm.DB
 }
 
-func NewUserRepository(db *gorm.DB) entity.UserRepository {
+func NewUserRepository(db *gorm.DB) port.UserRepository {
 	return &userRepository{db: db}
 }
 

@@ -5,13 +5,13 @@ import (
 	"errors"
 
 	"github.com/nujabuz/gomusic/internal/entity"
-	"github.com/nujabuz/gomusic/internal/usecase"
+	"github.com/nujabuz/gomusic/internal/entity/port"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type passwordHasher struct{}
 
-func NewPasswordHasher() usecase.PasswordHasher {
+func NewPasswordHasher() port.PasswordHasher {
 	return &passwordHasher{}
 }
 
