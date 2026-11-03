@@ -21,7 +21,7 @@ func (v *structValidator) Validate(out any) error {
 	return v.validate.Struct(out)
 }
 
-func NewApp(userHandler *rest.UserHandler, authHandler rest.AuthHandler) *fiber.App {
+func NewApp(userHandler *rest.UserHandler, authHandler *rest.AuthHandler, songHandler *rest.SongHandler) *fiber.App {
 	app := fiber.New(fiber.Config{
 		StructValidator: &structValidator{validate: validator.New()},
 	})
@@ -30,6 +30,7 @@ func NewApp(userHandler *rest.UserHandler, authHandler rest.AuthHandler) *fiber.
 
 	authHandler.Routes(api)
 	userHandler.Routes(api)
+	songHandler.Routes(api)
 
 	app.Use(func(ctx fiber.Ctx) error {
 		return rest.ResponseFailed(ctx, fiber.StatusNotFound, entity.ErrNotFound.Error(), fiber.ErrNotFound) // => 404 "Not Found"

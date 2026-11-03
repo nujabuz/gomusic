@@ -23,11 +23,13 @@ type SongRepository interface {
 // SongUseCase Port
 type SongUseCase interface {
 	Add(ctx context.Context, in *InputSong) (*Song, error)
+	Update(ctx context.Context, in *InputSong) (*Song, error)
 	Remove(ctx context.Context, id int64) error
 	GetByID(ctx context.Context, id int64) (*Song, error)
 }
 
 // InputSong used in SongUseCase
 type InputSong struct {
+	ID   int64
 	Name string
 }

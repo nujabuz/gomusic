@@ -17,15 +17,34 @@ func NewSongUseCase(songrepository entity.SongRepository) entity.SongUseCase {
 }
 
 func (u *songUseCase) Add(ctx context.Context, in *entity.InputSong) (*entity.Song, error) {
-	if err := u.songRepository.Create(ctx, &entity.Song{Name: in.Name}); err != nil {
+	song := new(entity.Song)
+	song.Name = in.Name
+
+	if err := u.songRepository.Create(ctx, song); err != nil {
 		return nil, err
 	}
 
-	return &entity.Song{Name: in.Name}, nil
+	return song, nil
 }
 
 func (u *songUseCase) Remove(ctx context.Context, id int64) error {
 	return u.songRepository.Delete(ctx, id)
+}
+
+func (u *songUseCase) Update(ctx context.Context, in *entity.InputSong) (*entity.Song, error) {
+	song := new(entity.Song)
+	song.Name = in.Name
+	song.ID = in.ID
+
+	if _, err := u.songRepository.Find(ctx, in.ID); err != nil {
+		return nil, err
+	}
+
+	if err := u.songRepository.Update(ctx, song); err != nil {
+		return nil, nil
+	}
+
+	return song, nil
 }
 
 func (u *songUseCase) GetByID(ctx context.Context, id int64) (*entity.Song, error) {

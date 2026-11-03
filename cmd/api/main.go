@@ -28,16 +28,21 @@ func main() {
 	tokenGenerator := security.NewTokenGenerator(cfg.JWT.Issuer, cfg.JWT.ExpiratedInSecond, cfg.JWT.Key)
 
 	userRepository := postgres.NewUserRepository(db)
+	songRepository := postgres.NewSongRepository(db)
 
 	userUseCase := usecase.NewUserUseCase(userRepository)
 	authUseCase := usecase.NewAuthUseCase(hasher, tokenGenerator, userRepository, userUseCase)
+	songUseCase := usecase.NewSongUseCase(songRepository)
 
-	userHandler := rest.NewUserHandler(userUseCase, tokenGenerator)
-	authhandler := rest.NewAuthHandler(authUseCase)
+	middlewareHandler := rest.NewMiddleware(tokenGenerator)
+	userHandler := rest.NewUserHandler(middlewareHandler.TokenMiddleware, userUseCase)
+	authHandler := rest.NewAuthHandler(authUseCase)
+	songHandler := rest.NewSongHandler(songUseCase, middlewareHandler.TokenMiddleware)
 
 	app := config.NewApp(
 		userHandler,
-		authhandler,
+		authHandler,
+		songHandler,
 	)
 	isShuttingDown := new(atomic.Bool)
 
@@ -54,12 +59,10 @@ func main() {
 
 	// Start
 	go func() {
-		if err := app.Listen(":3000", fiber.ListenConfig{
+		if err := app.Listen(cfg.App.Addr, fiber.ListenConfig{
 			DisableStartupMessage: true,
 		}); err != nil {
 			slog.Error("listen error", "error", err)
-		} else {
-			slog.Info("successfully listened on", "addr", cfg.App.Addr)
 		}
 	}()
 
