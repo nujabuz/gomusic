@@ -16,34 +16,30 @@ type RequestUserLogin struct {
 	Password string `json:"password" validate:"required,min=8,max=24"`
 }
 
-type AuthHandler interface {
-	Routes(api fiber.Router)
+type AuthHandler struct {
+	AuthUseCase port.AuthUseCase
 }
 
-type authHandler struct {
-	authUseCase port.AuthUseCase
-}
-
-func NewAuthHandler(authUseCase port.AuthUseCase) AuthHandler {
-	return &authHandler{
-		authUseCase: authUseCase,
+func NewAuthHandler(authUseCase port.AuthUseCase) *AuthHandler {
+	return &AuthHandler{
+		AuthUseCase: authUseCase,
 	}
 }
 
-func (h *authHandler) Routes(api fiber.Router) {
+func (h *AuthHandler) Routes(api fiber.Router) {
 	auth := api.Group("/auth")
 
 	auth.Post("/register", h.register)
 	auth.Post("/login", h.login)
 }
 
-func (h *authHandler) register(ctx fiber.Ctx) error {
+func (h *AuthHandler) register(ctx fiber.Ctx) error {
 	request := new(RequestUserRegister)
 	if err := ctx.Bind().Body(request); err != nil {
 		return ResponseFailedParseRequest(ctx, err)
 	}
 
-	out, err := h.authUseCase.Register(ctx, &port.RegisterInput{Username: request.Username, Password: request.Password})
+	out, err := h.AuthUseCase.Register(ctx, &port.RegisterInput{Username: request.Username, Password: request.Password})
 	if err != nil {
 		return EntityErrorTranslator(ctx, err)
 	}
@@ -54,13 +50,13 @@ func (h *authHandler) register(ctx fiber.Ctx) error {
 	return ResponseSuccess(ctx, fiber.StatusCreated, entity.SuccessRegister, res)
 }
 
-func (h *authHandler) login(ctx fiber.Ctx) error {
+func (h *AuthHandler) login(ctx fiber.Ctx) error {
 	request := new(RequestUserLogin)
 	if err := ctx.Bind().Body(request); err != nil {
 		return ResponseFailedParseRequest(ctx, err)
 	}
 
-	out, err := h.authUseCase.Login(ctx, &port.LoginInput{Username: request.Username, Password: request.Password})
+	out, err := h.AuthUseCase.Login(ctx, &port.LoginInput{Username: request.Username, Password: request.Password})
 	if err != nil {
 		return EntityErrorTranslator(ctx, err)
 	}

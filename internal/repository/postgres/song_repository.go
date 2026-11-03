@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/nujabuz/gomusic/internal/entity"
@@ -39,7 +40,10 @@ func (r *songRepository) Delete(ctx context.Context, id int64) error {
 
 func (r *songRepository) Find(ctx context.Context, id int64) (*entity.Song, error) {
 	song := new(songModel)
-	err := r.db.Model(&songModel{}).Where("id = ?", id).Take(song).Error
+	err := r.db.Where("id = ?", id).First(song).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, entity.ErrSongNotFound
+	}
 	return &entity.Song{ID: song.ID, Name: song.Name, CreatedAt: song.CreatedAt, UpdatedAt: song.UpdatedAt}, err
 }
 

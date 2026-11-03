@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -17,21 +16,21 @@ type ResponseUser struct {
 	UpdatedAt time.Time `json:"updated_at,omitzero"`
 }
 type UserHandler struct {
-	UserUseCase port.UserUseCase
-	Token       port.TokenGenerator
+	TokenMiddleware fiber.Handler
+	UserUseCase     port.UserUseCase
 }
 
-func NewUserHandler(userUseCase port.UserUseCase, token port.TokenGenerator) *UserHandler {
+func NewUserHandler(tokenMiddleware fiber.Handler, userUseCase port.UserUseCase) *UserHandler {
 	return &UserHandler{
-		UserUseCase: userUseCase,
-		Token:       token,
+		TokenMiddleware: tokenMiddleware,
+		UserUseCase:     userUseCase,
 	}
 }
 
 func (h *UserHandler) Routes(api fiber.Router) {
 	users := api.Group("/users")
 
-	users.Use(h.tokenMiddleware)
+	users.Use(h.TokenMiddleware)
 
 	users.Get("/:username<betweenLen(3,16)>", h.findByUsername)
 }
@@ -51,28 +50,4 @@ func (h *UserHandler) findByUsername(ctx fiber.Ctx) error {
 	res.UpdatedAt = out.UpdatedAt
 
 	return ResponseSuccess(ctx, fiber.StatusFound, entity.SuccessFindbyUsername, res)
-}
-
-// Middleware
-func (h *UserHandler) tokenMiddleware(ctx fiber.Ctx) error {
-	authHeader := ctx.Get("Authorization")
-	if !strings.HasPrefix(authHeader, "Bearer") {
-		return ResponseFailed(ctx, fiber.StatusUnauthorized, entity.ErrUnauthorized.Error(), fiber.ErrUnauthorized)
-	}
-
-	rawToken := strings.Split(authHeader, " ")
-	if len(rawToken) != 2 {
-		return ResponseFailed(ctx, fiber.StatusUnauthorized, entity.ErrUnauthorized.Error(), fiber.ErrUnauthorized)
-	}
-
-	token := rawToken[1]
-	claims, err := h.Token.Parse(token)
-	if err != nil {
-		EntityErrorTranslator(ctx, err)
-	}
-
-	ctx.SetLocal("userId", claims.ID)
-	ctx.SetLocal("username", claims.Subject)
-
-	return ctx.Next()
 }

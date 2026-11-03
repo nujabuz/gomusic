@@ -35,6 +35,10 @@ func EntityErrorTranslator(ctx fiber.Ctx, err error) error {
 	case errors.Is(err, entity.ErrUserInvalid):
 		return ResponseFailed(ctx, fiber.StatusUnauthorized, err.Error(), fiber.ErrUnauthorized)
 
+	// song error
+	case errors.Is(err, entity.ErrSongNotFound):
+		return ResponseFailed(ctx, fiber.StatusNotFound, err.Error(), fiber.ErrNotFound)
+
 	// unexpected error
 	default:
 		slog.Error("an unexpected error occurred", "error", err)
