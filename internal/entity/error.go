@@ -8,6 +8,7 @@ var (
 	ErrUnexpected       = errors.New("an unexpected error occurred on the server")
 	ErrParseRequestBody = errors.New("an error occurred while parsing the request body")
 	ErrNotFound         = errors.New("not found")
+	ErrUnauthorized     = errors.New("unauthorized")
 
 	// user errors
 	ErrUserNotFound      = errors.New("user not found")

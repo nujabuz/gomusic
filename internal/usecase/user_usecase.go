@@ -5,20 +5,21 @@ import (
 	"context"
 
 	"github.com/nujabuz/gomusic/internal/entity"
+	"github.com/nujabuz/gomusic/internal/entity/port"
 )
 
 type userUseCase struct {
-	repo   entity.UserRepository
-	hasher PasswordHasher
+	repo   port.UserRepository
+	hasher port.PasswordHasher
 }
 
-func NewUserUseCase(repo entity.UserRepository) entity.UserUseCase {
+func NewUserUseCase(repo port.UserRepository) port.UserUseCase {
 	return &userUseCase{
 		repo: repo,
 	}
 }
 
-func (u *userUseCase) FindUserByUsername(ctx context.Context, username string) (*entity.UserOutput, error) {
+func (u *userUseCase) FindUserByUsername(ctx context.Context, username string) (*port.UserOutput, error) {
 	user, err := u.repo.Find(ctx, &entity.User{Username: username})
 	if err != nil {
 		return nil, err
@@ -29,6 +30,6 @@ func (u *userUseCase) FindUserByUsername(ctx context.Context, username string) (
 }
 
 // Helper
-func (u *userUseCase) ToUserOutput(user *entity.User) *entity.UserOutput {
-	return &entity.UserOutput{ID: user.ID, Username: user.Username, CreatedAt: user.CreatedAt, UpdatedAt: user.UpdatedAt}
+func (u *userUseCase) ToUserOutput(user *entity.User) *port.UserOutput {
+	return &port.UserOutput{ID: user.ID, Username: user.Username, CreatedAt: user.CreatedAt, UpdatedAt: user.UpdatedAt}
 }
